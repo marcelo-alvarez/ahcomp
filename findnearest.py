@@ -69,20 +69,25 @@ used_params = clparams['params'].split(",")
 nused = len(used_params)
 usemean = clparams['usemean']
 
+centers = {}
+sigmas  = {}
 mode_descriptor="values and uncertainties from"
+for uparam in used_params:
+    centers[uparam] = fiducial[uparam][0]
+    sigmas[uparam] = fiducial[uparam][1]
 if usemean:
-    mode_descriptor="values from mean of boxes and uncertainties from"
+    mode_descriptor="values from mean of boxes (in parentheses) and uncertainties from"
     for uparam in used_params:
-        fiducial[uparam][0] = boxparams[uparam][:].mean()
+        centers[uparam] = boxparams[uparam][:].mean()
 
 boxrms = []
 for box in range(nbox):
     l2 = 0.0
     for uparam in used_params:
-        fp = fiducial[uparam][0]
-        dp = fiducial[uparam][1]
+        cp = centers[uparam]
+        sp = sigmas[uparam]
         bp = boxparams[uparam][box]
-        dl2 = ((fp-bp)/dp)**2
+        dl2 = ((cp-bp)/sp)**2
         l2 += dl2
     l2 /= nused
     boxrms.append(l2**0.5)
@@ -94,7 +99,11 @@ print(f"#")
 for uparam in used_params:
     fp = str(round_to_n(fiducial[uparam][0],4))
     dp = str(fiducial[uparam][1])
-    print(f"#  {uparam:>6}: {fp:>7} +/- {dp:>7}")
+    if usemean:
+        cp = str(round_to_n(centers[uparam],4))
+        print(f"#  {uparam:>6}: {fp:>7} ({cp:>7}) +/- {dp:>7}")
+    else:
+        print(f"#  {uparam:>6}: {fp:>7} +/- {dp:>7}")
 print(f"#")
 print(f"# column 1: box")
 print(f"# column 2: rms distance from fiducial")
