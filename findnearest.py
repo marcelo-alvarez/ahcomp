@@ -1,4 +1,6 @@
 import numpy as np
+from math import log10, floor
+round_to_n = lambda x, n: x if x == 0 else round(x, -int(floor(log10(abs(x)))) + (n - 1))
 
 def parsecommmandline(commandline_params):
     import argparse
@@ -7,8 +9,14 @@ def parsecommmandline(commandline_params):
         pval  = commandline_params[param]['val']
         ptype = commandline_params[param]['type']
         pdesc = commandline_params[param]['desc']
-        parser.add_argument('--'+param, default=pval, help=f'{pdesc} [{pval}]', 
-                            type=ptype)
+        if ptype is bool:
+            action='store_true'
+            if pval:
+                print("storing false")
+                action='store_false' 
+            parser.add_argument('--'+param, action=action,help=f'{pdesc}')
+        else:
+            parser.add_argument('--'+param, default=pval, help=f'{pdesc} [{pval}]',type=ptype)
     return vars(parser.parse_args())
 
 commandline_params = {
@@ -17,7 +25,10 @@ commandline_params = {
                        'desc' : 'comma separated parameter list'},
       'fiducial' : {'val'  : "mdpl2",
                        'type' : str,
-                       'desc' : 'fiducial cosmology, either mdpl2 or pl2018'}
+                       'desc' : 'fiducial cosmology, either mdpl2 or pl2018'},
+      'usemean'  : {'val' : False,
+                       'type' : bool,
+                       'desc' : 'enable using mean with uncertainties from fiducial'}
            }
 
 fiducials = {
@@ -56,6 +67,13 @@ boxparams     = np.genfromtxt(boxparamsfile,names=True)
 nbox = np.shape(boxparams)[0]
 used_params = clparams['params'].split(",")
 nused = len(used_params)
+usemean = clparams['usemean']
+
+mode_descriptor="values and uncertainties from"
+if usemean:
+    mode_descriptor="values from mean of boxes and uncertainties from"
+    for uparam in used_params:
+        fiducial[uparam][0] = boxparams[uparam][:].mean()
 
 boxrms = []
 for box in range(nbox):
@@ -71,10 +89,10 @@ for box in range(nbox):
 boxrms = np.asarray(boxrms)
 boxlist = np.argsort(boxrms)
 
-print(f"# using fiducial cosmology {clparams['fiducial']}:")
+print(f"# using {mode_descriptor} fiducial cosmology {clparams['fiducial']}:")
 print(f"#")
 for uparam in used_params:
-    fp = str(fiducial[uparam][0])
+    fp = str(round_to_n(fiducial[uparam][0],4))
     dp = str(fiducial[uparam][1])
     print(f"#  {uparam:>6}: {fp:>7} +/- {dp:>7}")
 print(f"#")
